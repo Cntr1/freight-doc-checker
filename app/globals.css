@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "DM Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-surface-0: #010409;
+  --color-surface-1: #0D1117;
+  --color-surface-2: #161B22;
+  --color-surface-3: #21262D;
+
+  --color-border: #21262D;
+  --color-border-subtle: #30363D;
+
+  --color-text-primary: #E6EDF3;
+  --color-text-secondary: #C9D1D9;
+  --color-text-muted: #8B949E;
+  --color-text-faint: #484F58;
+
+  --color-accent: #2EA043;
+  --color-accent-hover: #3FB950;
+  --color-accent-muted: #1C3A2A;
+
+  --color-critical: #F85149;
+  --color-critical-muted: #2D0A0A;
+  --color-critical-border: #991B1B;
+  --color-critical-text: #FCA5A5;
+
+  --color-warning: #D29922;
+  --color-warning-muted: #2D1F0A;
+  --color-warning-border: #92400E;
+  --color-warning-text: #FCD34D;
+
+  --color-info: #58A6FF;
+  --color-info-muted: #0A1A2D;
+  --color-info-border: #1E40AF;
+  --color-info-text: #93C5FD;
+}
+
+@layer base {
+  body {
+    background: var(--color-surface-0);
+    color: var(--color-text-primary);
+    font-family: var(--font-display);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-surface-1);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-surface-3);
+    border-radius: 3px;
+  }
+}
+
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-slide-in 0.35s ease both;
+}
+
+.animate-spin {
+  animation: spin 0.8s linear infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-2) 25%,
+    var(--color-surface-3) 50%,
+    var(--color-surface-2) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
