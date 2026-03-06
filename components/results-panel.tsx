@@ -50,8 +50,6 @@ export function ResultsPanel({ result }: { result: ComparisonResult }) {
   const infoCount = result.discrepancies?.filter((d) => d.severity === "info").length || 0;
   const totalIssues = result.discrepancies?.length || 0;
 
-  const overallSeverity: Severity =
-    criticalCount > 0 ? "critical" : warningCount > 0 ? "warning" : "info";
   const overallColor =
     criticalCount > 0
       ? "text-critical"
@@ -95,11 +93,11 @@ export function ResultsPanel({ result }: { result: ComparisonResult }) {
               <span className="text-critical-text">{criticalCount} critical</span>
             )}
             {warningCount > 0 && (
-              <span className="text-warning-text">{warningCount} warning{warningCount > 1 ? "s" : ""}</span>
+              <span className="text-warning-text">
+                {warningCount} warning{warningCount > 1 ? "s" : ""}
+              </span>
             )}
-            {infoCount > 0 && (
-              <span className="text-info-text">{infoCount} info</span>
-            )}
+            {infoCount > 0 && <span className="text-info-text">{infoCount} info</span>}
           </div>
         )}
       </div>

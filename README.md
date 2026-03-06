@@ -2,19 +2,22 @@
 
 AI-powered shipping document verification for freight forwarders. Upload B/L instructions, packing lists, bills of lading, and commercial invoices — the AI cross-references every field and flags discrepancies.
 
-![Next.js](https://img.shields.io/badge/Next.js-15-black)
-![Claude](https://img.shields.io/badge/Claude-Sonnet-orange)
+**Free to use** — powered by Google Gemini's free API tier.
 
 ## What it does
 
-- **Compares** B/L instructions, packing lists, bills of lading, and commercial invoices side by side
+- **Compares** B/L instructions, packing lists, bills of lading, and commercial invoices
 - **Flags** discrepancies with severity levels: critical, warning, info
 - **Checks** shipper/consignee details, container numbers, weights, package counts, ports, freight terms, and more
 - **Confirms** which fields match correctly across documents
 
 ## Setup
 
-### 1. Clone and install
+### 1. Get a free Gemini API key
+
+Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey) and create a key. It's free — the free tier gives you 15 requests/minute and 1,500 requests/day.
+
+### 2. Clone and install
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/freight-doc-checker.git
@@ -22,19 +25,19 @@ cd freight-doc-checker
 npm install
 ```
 
-### 2. Add your API key
+### 3. Configure
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-Edit `.env.local` and add your Anthropic API key from [console.anthropic.com](https://console.anthropic.com/):
+Edit `.env.local` and paste your Gemini API key:
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=AIza...
 ```
 
-### 3. Run
+### 4. Run
 
 ```bash
 npm run dev
@@ -57,19 +60,19 @@ Open [http://localhost:3000](http://localhost:3000).
 | Bill of Lading | The issued or draft B/L to verify |
 | Commercial Invoice | Seller's invoice for the shipment |
 
-## Tech stack
-
-- **Next.js 15** — React framework with API routes
-- **Claude Sonnet** — AI-powered document analysis via Anthropic API
-- **Tailwind CSS v4** — Styling
-- **Framer Motion** — Animations
-- **TypeScript** — Type safety
-
 ## Customizing
 
-- **Add document types**: Edit `lib/types.ts` to add more document slots
-- **Tune the AI prompt**: Edit `lib/prompt.ts` to adjust what fields get checked and how severity is classified
-- **Change the model**: Edit `app/api/compare/route.ts` to use a different Claude model
+- **Add document types**: Edit `lib/types.ts`
+- **Tune the AI prompt**: Edit `lib/prompt.ts` to adjust what gets checked and severity rules
+- **Change the model**: Edit `app/api/compare/route.ts` (default: `gemini-2.0-flash`)
+
+## Tech stack
+
+- Next.js 15
+- Google Gemini 2.0 Flash (free tier)
+- Tailwind CSS v4
+- Framer Motion
+- TypeScript
 
 ## License
 

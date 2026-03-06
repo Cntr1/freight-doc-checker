@@ -150,7 +150,7 @@ export default function Home() {
                 disabled={!canCompare || loading}
                 className={`flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold transition-all ${
                   canCompare && !loading
-                    ? "bg-gradient-to-r from-accent to-emerald-600 text-white shadow-[0_4px_24px_var(--color-accent)/20] hover:shadow-[0_4px_32px_var(--color-accent)/30]"
+                    ? "bg-gradient-to-r from-accent to-emerald-600 text-white shadow-[0_4px_24px_var(--color-accent)/20] hover:shadow-[0_4px_32px_var(--color-accent)/30] cursor-pointer"
                     : "bg-surface-2 text-text-faint cursor-not-allowed"
                 }`}
               >

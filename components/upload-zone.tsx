@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { FileUp, X, FileText } from "lucide-react";
+import { FileUp, X } from "lucide-react";
 import type { DocumentSlot } from "@/lib/types";
 
 interface UploadZoneProps {
