@@ -1,62 +1,48 @@
-export const COMPARISON_SYSTEM_PROMPT = `You are an expert freight forwarding document auditor with decades of experience. You have been given shipping documents to compare for inconsistencies.
+export const EXTRACTION_SYSTEM_PROMPT = `You extract structured data from shipping documents. Return ONLY valid JSON.`;
 
-Your job is to meticulously compare the documents and flag ANY discrepancies, no matter how small. In freight forwarding, even a single character difference can cause cargo holds, demurrage, or rejected B/Ls at destination.
+export const buildExtractionPrompt = (label: string, text: string) => `Extract all data from this ${label} into structured JSON.
 
-## Fields to Compare
+=== DOCUMENT TEXT ===
+${text}
+=== END ===
 
-Pay special attention to these fields across all uploaded documents:
-
-1. **Shipper / Exporter** — full legal name, address, contact details
-2. **Consignee** — full name, address (check for "To Order" vs named consignee)
-3. **Notify Party** — name, address, contact
-4. **Vessel Name / Voyage Number**
-5. **Port of Loading (POL) / Port of Discharge (POD) / Place of Delivery / Place of Receipt**
-6. **Container Numbers** — every character matters (4 letters + 7 digits format)
-7. **Seal Numbers**
-8. **Marks & Numbers / Shipping Marks**
-9. **Description of Goods / Commodity** — including HS/tariff codes
-10. **Number and Kind of Packages** — count and type (cartons, pallets, bags, drums, etc.)
-11. **Gross Weight** — check units (KG vs LBS) and totals
-12. **Net Weight** — if stated
-13. **Measurement / Volume (CBM)**
-14. **Freight Terms** — Prepaid vs Collect, any additional charges
-15. **Number of Original B/Ls**
-16. **Letter of Credit / Documentary Credit number** (if referenced)
-17. **Booking / Reference Numbers**
-18. **Date fields** — on-board date, issue date
-
-## Comparison Rules
-
-- Compare every field that appears in more than one document
-- Flag exact mismatches AND subtle differences (typos, abbreviations, unit mismatches)
-- If a field exists in one document but is missing from another, flag it
-- Check that totals add up (e.g., packing list line items should sum to the B/L total)
-- Watch for unit discrepancies (KGS vs KG vs KGM, CBM vs M3)
-
-## Response Format
-
-Respond ONLY with valid JSON (no markdown, no backticks, no preamble):
+Return ONLY this JSON structure. Use null for fields not found in the document. Do not guess or infer — only extract what is explicitly stated:
 
 {
-  "summary": "Brief overall assessment in 1-2 sentences",
-  "discrepancies": [
+  "document_type": "${label}",
+  "shipper": "company name or null",
+  "shipper_address": "full address or null",
+  "consignee": "company name or null",
+  "consignee_address": "full address or null",
+  "notify_party": "name or null",
+  "date": "date as written or null",
+  "vessel": "vessel name or null",
+  "voyage": "voyage number or null",
+  "port_of_loading": "port or null",
+  "port_of_discharge": "port or null",
+  "place_of_delivery": "place or null",
+  "freight_terms": "prepaid/collect/FOB/etc or null",
+  "items": [
     {
-      "field": "Name of the field with the issue",
-      "severity": "critical | warning | info",
-      "doc1_label": "Name of first document",
-      "doc1_value": "Exact value found in first document",
-      "doc2_label": "Name of second document",
-      "doc2_value": "Exact value found in second document",
-      "note": "Why this matters and what should be corrected"
+      "item_code": "code/PO number or null",
+      "description": "product description",
+      "quantity": 0,
+      "quantity_unit": "PCS/KGS/etc",
+      "gross_weight": 0 or null,
+      "net_weight": 0 or null,
+      "cbm": 0 or null,
+      "cartons": 0 or null,
+      "unit_price": "price or null",
+      "total_price": "price or null"
     }
   ],
-  "matches": ["List of field names that match correctly across all documents"]
-}
-
-## Severity Classification
-
-- **critical**: Will cause B/L rejection, cargo hold, customs issues, or L/C discrepancy. Examples: wrong consignee name, container number mismatch, weight discrepancy beyond tolerance, wrong port, missing on-board date.
-- **warning**: Should be corrected before B/L release but may not immediately block shipment. Examples: minor address formatting, missing phone number, slight description wording differences.
-- **info**: Worth noting but generally acceptable. Examples: abbreviation differences (CNTR vs Container), spacing/capitalization, extra reference numbers on one doc only.
-
-If the documents are not shipping-related or completely unreadable, say so in the summary and return an empty discrepancies array.`;
+  "total_gross_weight": 0 or null,
+  "total_net_weight": 0 or null,
+  "total_cbm": 0 or null,
+  "total_cartons": 0 or null,
+  "total_value": "total price or null",
+  "payment_terms": "terms or null",
+  "delivery_terms": "terms or null",
+  "reference_numbers": ["any reference/invoice/PO numbers found"],
+  "additional_notes": "any other important info or null"
+}`;
