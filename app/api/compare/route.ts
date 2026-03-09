@@ -104,7 +104,7 @@ async function extractWithFallback(
       return await extractFromImage(apiKey, label, fileBuffer, mimeType, model);
     } else {
       console.log(`  Using text for: ${label} (${text!.length} chars)`);
-      console.log(`  TEXT CONTENT:\n${text}`);
+    //console.log(`  TEXT CONTENT:\n${text}`);
       return await extractFromText(apiKey, label, text!, model);
     }
   };
