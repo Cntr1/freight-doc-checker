@@ -96,15 +96,14 @@ async function extractWithFallback(
   fileBuffer: Buffer,
   mimeType: string
 ): Promise<any> {
-  const useVision = !text || text.length < 50; // Too little text = probably scanned
+  const useVision = !text || text.length < 1000;
 
   const extract = async (model: string) => {
     if (useVision) {
-      console.log(`  Using vision for: ${label}`);
+      console.log(`  Using vision for: ${label} (${model})`);
       return await extractFromImage(apiKey, label, fileBuffer, mimeType, model);
     } else {
-      console.log(`  Using text for: ${label} (${text!.length} chars)`);
-    //console.log(`  TEXT CONTENT:\n${text}`);
+      console.log(`  Using text for: ${label} (${text!.length} chars, ${model})`);
       return await extractFromText(apiKey, label, text!, model);
     }
   };
@@ -113,8 +112,18 @@ async function extractWithFallback(
     return await extract("gemini-2.5-flash");
   } catch (err: any) {
     if (err?.status === 429 || err?.message?.includes("429")) {
-      console.log(`  Flash rate limited for ${label}, using flash-lite`);
-      return await extract("gemini-2.5-flash-lite");
+      console.log(`  Flash rate limited for ${label}, waiting 5s then trying flash-lite`);
+      await new Promise((r) => setTimeout(r, 5000));
+      try {
+        return await extract("gemini-2.5-flash-lite");
+      } catch (err2: any) {
+        if (err2?.status === 429 || err2?.message?.includes("429")) {
+          console.log(`  Flash-lite also limited, waiting 15s and retrying`);
+          await new Promise((r) => setTimeout(r, 15000));
+          return await extract("gemini-2.5-flash-lite");
+        }
+        throw err2;
+      }
     }
     throw err;
   }

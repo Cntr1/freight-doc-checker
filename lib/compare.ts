@@ -267,6 +267,33 @@ export function compareDocuments(
         }
       }
 
+      // Reverse check: see if combined doc mentions goods NOT in the detailed doc
+      const allDetailedDescs = detailedItems
+        .map((it: any) => normalize(it.description || ""))
+        .join(" ");
+
+      for (const cItem of combinedItems) {
+        const cKeywords = (cItem.description || "")
+          .toLowerCase()
+          .split(/[\s,/]+/)
+          .filter((w: string) => w.length >= 3);
+
+        const foundInDetailed = cKeywords.some((kw: string) => allDetailedDescs.includes(normalize(kw)));
+
+        if (!foundInDetailed && cKeywords.length > 0) {
+          addDiscrepancy(
+            discrepancies,
+            `Item on ${combinedDocType} not found in ${detailedDocType}`,
+            "critical",
+            detailedDocType,
+            detailedItems.map((it: any) => normalizeSpaced(it.description || "")).join(", "),
+            combinedDocType,
+            normalizeSpaced(cItem.description || ""),
+            `${combinedDocType} mentions goods not found in ${detailedDocType}.`
+          );
+        }
+      }
+
       matches.push(`Goods description cross-checked against ${combinedDocType}`);
 
     } else {
