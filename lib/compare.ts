@@ -32,15 +32,19 @@ function normalize(val: string | null | undefined): string {
   return val.toString().toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+// Normalize port names: strip country suffixes and common variations
+function normalizePort(val: string | null | undefined): string {
+  if (!val) return "";
+  let s = val.toString().toLowerCase().trim();
+  s = s.replace(/,?\s*(china|india|sri\s*lanka|singapore|malaysia|usa|uk|japan|korea|thailand|indonesia|vietnam|philippines|hong\s*kong|taiwan|bangladesh|pakistan|myanmar|cambodia|egypt|turkey|brazil|mexico|germany|netherlands|belgium|france|italy|spain|uae|saudi\s*arabia|oman|qatar|kenya|south\s*africa|australia|new\s*zealand|canada|p\.?r\.?c\.?)\.?\s*$/i, "");
+  return s.replace(/[^a-z0-9]/g, "").trim();
+}
+
 // Normalize but keep spaces (for readable display)
 function normalizeSpaced(val: string | null | undefined): string {
   if (!val) return "";
   let s = val.toString().replace(/\s+/g, " ").trim();
-  // Fix missing spaces before capital letters (pdf-parse artifact)
-  // "metalhookforHARNESSBALANCE" → "metalhookfor HARNESS BALANCE"
   s = s.replace(/([a-z])([A-Z])/g, "$1 $2");
-  // Fix runs of uppercase that should be spaced: "HARNESSBALANCE" → "HARNESS BALANCE"  
-  // Only split when transitioning from uppercase run to new uppercase word
   s = s.replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2");
   return s;
 }
@@ -65,7 +69,12 @@ function compareField(
 
   if (!bothHaveValue(v1, v2)) return;
 
-  if (normalize(String(v1)) === normalize(String(v2))) {
+  // Use port-aware normalization for port/place fields
+  const isPortField = field.includes("port_of") || field.includes("place_of");
+  const norm1 = isPortField ? normalizePort(String(v1)) : normalize(String(v1));
+  const norm2 = isPortField ? normalizePort(String(v2)) : normalize(String(v2));
+
+  if (norm1 === norm2) {
     matches.push(label);
   } else {
     addDiscrepancy(
@@ -116,7 +125,6 @@ function matchItems(
       const item2 = items2[j];
       let score = 0;
 
-      // Match by item code (strongest signal)
       if (item1.item_code && item2.item_code) {
         const code1 = normalize(String(item1.item_code));
         const code2 = normalize(String(item2.item_code));
@@ -125,19 +133,16 @@ function matchItems(
         }
       }
 
-      // Match by PO number
       if (item1.po_number && item2.po_number) {
         if (normalize(String(item1.po_number)) === normalize(String(item2.po_number))) {
           score += 5;
         }
       }
 
-      // Match by quantity
       if (item1.quantity && item2.quantity && Number(item1.quantity) === Number(item2.quantity)) {
         score += 3;
       }
 
-      // Match by description word overlap
       const desc1Words = normalize(item1.description || "").match(/.{2,}/g) || [];
       const desc2Norm = normalize(item2.description || "");
       let overlap = 0;
@@ -175,7 +180,6 @@ export function compareDocuments(
   const discrepancies: Discrepancy[] = [];
   const matches: string[] = [];
 
-  // Compare header fields (only if BOTH documents have them)
   const fieldPairs: Array<[string, string, Severity]> = [
     ["shipper", "Shipper / Seller", "critical"],
     ["shipper_address", "Shipper Address", "warning"],
@@ -196,7 +200,6 @@ export function compareDocuments(
     compareField(doc1, doc2, field, label, severity, discrepancies, matches);
   }
 
-  // Dates — always info since different doc types naturally have different dates
   if (bothHaveValue(doc1.date, doc2.date)) {
     if (normalize(doc1.date) !== normalize(doc2.date)) {
       addDiscrepancy(
@@ -214,14 +217,10 @@ export function compareDocuments(
     }
   }
 
-  // Compare line items
   const items1 = doc1.items || [];
   const items2 = doc2.items || [];
 
   if (items1.length > 0 && items2.length > 0) {
-    // Detect combined-description documents (like B/Ls):
-    // - Single item with no code, OR
-    // - Multiple items but ALL have no item_code and no quantity (just descriptions)
     const isBlankItems = (items: any[]) =>
       items.every((it: any) => !it.item_code && (!it.quantity || it.quantity === 0 || it.quantity === "?"));
 
@@ -233,18 +232,15 @@ export function compareDocuments(
       (items2.length >= 1 && items1.length > 1 && isBlankItems(items2) && !isBlankItems(items1));
 
     if (isCombinedDoc1 || isCombinedDoc2) {
-      // One doc has individual items, the other has a combined description (like a B/L)
       const detailedItems = isCombinedDoc1 ? items2 : items1;
       const combinedItems = isCombinedDoc1 ? items1 : items2;
       const detailedDocType = isCombinedDoc1 ? doc2.document_type : doc1.document_type;
       const combinedDocType = isCombinedDoc1 ? doc1.document_type : doc2.document_type;
 
-      // Build one big string from all combined items' descriptions
       const allCombinedDescs = combinedItems
         .map((it: any) => normalize(it.description || ""))
         .join(" ");
 
-      // Check each detailed item's key words appear somewhere in the combined descriptions
       for (const item of detailedItems) {
         const keywords = (item.description || "")
           .toLowerCase()
@@ -267,7 +263,6 @@ export function compareDocuments(
         }
       }
 
-      // Reverse check: see if combined doc mentions goods NOT in the detailed doc
       const allDetailedDescs = detailedItems
         .map((it: any) => normalize(it.description || ""))
         .join(" ");
@@ -297,7 +292,6 @@ export function compareDocuments(
       matches.push(`Goods description cross-checked against ${combinedDocType}`);
 
     } else {
-      // Normal item-by-item comparison
       const { matched, onlyInDoc1, onlyInDoc2 } = matchItems(items1, items2);
 
       for (const item of onlyInDoc1) {
@@ -433,7 +427,6 @@ export function compareDocuments(
 
   for (const [field, label] of totalFields) {
     if (bothHaveValue(doc1[field], doc2[field])) {
-      // Parse numeric values, stripping units like "KGS", "CBM"
       const num1 = parseFloat(String(doc1[field]).replace(/[^0-9.]/g, ""));
       const num2 = parseFloat(String(doc2[field]).replace(/[^0-9.]/g, ""));
 
@@ -441,7 +434,6 @@ export function compareDocuments(
         if (num1 === num2) {
           matches.push(label);
         } else {
-          // Small differences (rounding) = warning, big differences = critical
           const diff = Math.abs(num1 - num2);
           const pct = diff / Math.max(num1, num2);
           const severity: Severity = field.toLowerCase().includes("weight") || pct > 0.05 ? "critical" : "warning";
@@ -474,11 +466,9 @@ export function compareDocuments(
     }
   }
 
-  // Sort: critical first, then warning, then info
   const severityOrder: Record<Severity, number> = { critical: 0, warning: 1, info: 2 };
   discrepancies.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-  // Summary
   const criticalCount = discrepancies.filter((d) => d.severity === "critical").length;
   const warningCount = discrepancies.filter((d) => d.severity === "warning").length;
 
