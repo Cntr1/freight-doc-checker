@@ -7,30 +7,45 @@ export const buildExtractionPrompt = (label: string, text: string) =>
 ${text}
 === END ===
 
-Return ONLY this JSON. Use null for fields not in the document. Keep values exactly as written in the document. The "document_type" MUST be exactly "${label}" — do not change it:
+Return ONLY this JSON. Use null for fields not present. Keep values exactly as written. The "document_type" MUST be exactly "${label}":
 
 {
   "document_type": "${label}",
-  "shipper": "company name only or null",
-  "shipper_address": "address only or null",
-  "consignee": "company name only or null",
-  "consignee_address": "address only or null",
-  "notify_party": "name or null",
-  "date": "date as written or null",
-  "vessel": "vessel name or null",
-  "voyage": "voyage number or null",
-  "port_of_loading": "port or null",
-  "port_of_discharge": "port or null",
-  "place_of_delivery": "place or null",
-  "freight_terms": "prepaid/collect/FOB/etc or null",
-  "payment_terms": "terms or null",
-  "delivery_terms": "terms or null",
+  "Bol_reference": "the B/L number on this document, e.g. CCLBOM252402, or null",
+
+  "Exporter_name": "the shipper/consignor/exporter company name, or null",
+  "Exporter_address": "the shipper/consignor/exporter address, or null",
+  "Consignee_name": "the consignee/buyer company name, or null",
+  "Consignee_address": "the consignee/buyer address, or null",
+  "Notify_name": "notify party name, or null",
+  "Notify_address": "notify party address, or null",
+  "Carrier_name": "delivery agent / carrier company name, or null",
+  "Carrier_address": "delivery agent / carrier address, or null",
+
+  "Place_of_loading_code": "port of loading as written on document, or null",
+  "Place_of_unloading_code": "port of discharge as written on document, or null",
+  "Place_of_delivery": "place of delivery as written, or null",
+
+  "Voyage_number": "voyage number only (e.g. 0011W), NOT including vessel name, or null",
+  "Vessel_name": "vessel name only (e.g. ONE READINESS), NOT including voyage number, or null",
+
+  "Number_of_packages": 21,
+  "Gross_mass": 6380.72,
+  "Volume_in_cubic_meters": 50.0,
+  "Shipping_marks": "the Marks and Numbers / Shipping Marks field as written (e.g. TIRUPATI MAKE). Look in the marks/numbers column of the cargo table. Use null if genuinely absent.",
+  "Goods_description": "the COMPLETE goods description block — include ALL lines: package count line, part codes, product descriptions, invoice numbers, HS codes, S/Bill numbers. Do NOT include weight table data (lines containing GR. WT., NET. WT., KGS with numbers, or CBM values). Do NOT truncate.",
+  "Ctn_reference": "the container number — a code like HMMU4028768 (4 letters + 7 digits). Do NOT use the carrier B/L prefix (like HDMU or BOMA). If the document shows 'HMMU4028768 / 2464981' the container number is HMMU4028768. Use null if not found.",
+  "Marks1": "the seal number — on an MBL it appears after the slash in the container line e.g. 'HMMU4028768 / 2464981' where 2464981 is the seal number. Also check the Seal No. field. Use null if not found.",
+
+  "Freight_terms": "PREPAID or COLLECT or null",
+  "Date_of_departure": "onboard date in YYYY-MM-DD format, or null",
+
   "items": [
     {
-      "item_code": "product number like 71414 or null",
+      "item_code": "product code like 71400 or null",
       "po_number": "PO reference or null",
       "description": "product description as written",
-      "quantity": 10000,
+      "quantity": 1000,
       "quantity_unit": "PCS",
       "gross_weight": "weight or null",
       "net_weight": "weight or null",
@@ -39,22 +54,18 @@ Return ONLY this JSON. Use null for fields not in the document. Keep values exac
       "unit_price": "price or null",
       "total_price": "price or null"
     }
-  ],
-  "total_gross_weight": null,
-  "total_net_weight": null,
-  "total_cbm": null,
-  "total_cartons": null,
-  "total_value": null,
-  "reference_numbers": []
+  ]
 }
 
 IMPORTANT RULES:
-- Each distinct product/line item should be a separate entry in "items". If a document lists 3 different products, there should be 3 items.
-- Use "item_code" for the specific product number (like 71414, 71415, 71416) and "po_number" for the PO/order reference.
-- SHIPPER/SELLER identification:
-  * On a Packing List: the shipper is the company whose letterhead or logo appears on the document, NOT the "Ship To" party. The "Ship To" party is the CONSIGNEE/BUYER.
-  * On an Invoice: the company issuing the invoice (at the top/letterhead) is the SHIPPER/SELLER. The "TO:" or "Bill To:" party is the CONSIGNEE/BUYER.
-  * On a Bill of Lading: the "Shipper" field explicitly labels who the shipper is. The "Consignee" field labels the consignee.
-  * The shipper is typically the exporter/manufacturer/seller. The consignee is the importer/buyer/receiver.
-- If goods are listed as a single block (e.g. "METAL HOOK / SPRING / STAINLESS STEEL SHEET") without individual quantities, create ONE item entry with the full description and set quantity to null.
+- Bol_reference: this is the House B/L number issued by the freight forwarder (e.g. CCLBOM252402). Not the MBL/carrier B/L number.
+- Vessel_name and Voyage_number: ALWAYS extract these as separate fields. If the document shows "ONE READINESS V 0011W", Vessel_name = "ONE READINESS" and Voyage_number = "0011W".
+- Exporter/Shipper identification:
+  * On a B/L: "Consignor" or "Shipper" field = Exporter_name/address. "Consignee" field = Consignee_name/address.
+  * On a Packing List: the company on the letterhead/logo is the Exporter, NOT the "Ship To" party. "Ship To" = Consignee.
+  * On an Invoice: the issuing company (top/letterhead) is the Exporter. "To:" / "Bill To:" = Consignee.
+- Number_of_packages: extract as a plain number (e.g. 21, not "21 PACKAGES").
+- Gross_mass: extract as a plain number in KGS (e.g. 6380.72, not "6380.72 KGS").
+- Volume_in_cubic_meters: extract as a plain number (e.g. 50.0), or 0 if not stated.
+- If goods are listed as a single block without individual quantities, create ONE item with the full description and quantity = null.
 - Do NOT split a combined goods description into separate items unless each has its own quantity.`;
