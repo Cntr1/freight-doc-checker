@@ -8,6 +8,37 @@ function inferPackageTypeCode(hbl: ExtractedDoc): string {
   if (desc.includes("PALLET")) return "PX";
   return "PK";
 }
+/** Strip leading package-count preamble lines from goods description.
+ *  e.g. "TWO PALLETS ONLY TOTAL 2 PACKAGES ARTICLES MADE OF..."
+ *    → "ARTICLES MADE OF..."
+ *  Gensoft starts the description from the actual goods, not the count line.
+ */
+function cleanGoodsDescription(desc: string | null | undefined): string {
+  if (!desc) return "";
+
+  // Only strip a leading preamble if it mentions PALLET/PALLETS
+  // (pallet count is never part of the goods description).
+  // Package/carton counts are sometimes kept by Gensoft, so leave those alone.
+  const stripped = desc
+    .replace(/^(ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|\d+)\s+PALLETS?\s+ONLY\s*/i, "")
+    .trim();
+
+  // Collapse spaces between reference keywords and their values to match Gensoft format
+  // e.g. "INVOICE NO TI1536" → "INVOICE NOTI1536", "HS CODE 39202010" → "HS CODE39202010"
+  const collapsed = stripped
+    .replace(/\bINVOICE\s+NO\s+/gi, "INVOICE NO")
+    .replace(/\bHS\s+CODE\s+/gi, "HS CODE")
+    .replace(/\bS\/BILL\s+NO\s+/gi, "S/BILL NO")
+    .replace(/(\d+MM)\s+([A-Z])\b/g, "$1$2"); // e.g. "1.22MM W" → "1.22MMW"
+
+  // Strip inline weight table lines that pdf-parse picks up between description lines
+  return collapsed  
+    .replace(/\bGR\.?\s*WT\.?\\?KGS?\b\s*[\d.,]*\s*/gi, "")
+    .replace(/\bNET\.?\s*WT\.?\\?KGS?\b\s*[\d.,]+\s*/gi, "")
+    .replace(/\bTOTAL\s+\d+\s+PACKAGES?\s+[\d.,]+\s*/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 
 /**
  * Generates a Gensoft-compatible Awbolds XML string from extracted HBL data.
@@ -23,7 +54,7 @@ export function generateGensoftXml(
   lines.push(`<?xml version="1.0" encoding="UTF-8" standalone="no"?>`);
   lines.push(`<Awbolds>`);
   lines.push(`\t<Master_bol>`);
-  lines.push(`\t\t<Customs_office_code>${x(master.Customs_office_code)}</Customs_office_code>`);
+  lines.push(`\t\t<Customs_office_code>${x(master.Customs_office_code) || "SECMB"}</Customs_office_code>`);
   lines.push(`\t\t<Voyage_number>${x(master.Voyage_number)}</Voyage_number>`);
   lines.push(`\t\t<Date_of_departure>${x(master.Date_of_departure)}</Date_of_departure>`);
   lines.push(`\t\t<Reference_number>${x(master.Reference_number)}</Reference_number>`);
@@ -91,7 +122,7 @@ export function generateGensoftXml(
     lines.push(`\t\t\t<Package_type_code>${inferPackageTypeCode(hbl)}</Package_type_code>`);
     lines.push(`\t\t\t<Gross_mass>${hbl.Gross_mass ?? ""}</Gross_mass>`);
     lines.push(`\t\t\t<Shipping_marks>${x(hbl.Shipping_marks)}</Shipping_marks>`);
-    lines.push(`\t\t\t<Goods_description>${x(hbl.Goods_description)}</Goods_description>`);
+    lines.push(`\t\t\t<Goods_description>${x(cleanGoodsDescription(hbl.Goods_description))}</Goods_description>`);
     lines.push(`\t\t\t<Volume_in_cubic_meters>${hbl.Volume_in_cubic_meters ?? 0}</Volume_in_cubic_meters>`);
     lines.push(`\t\t\t<Num_of_ctn_for_this_bol>1</Num_of_ctn_for_this_bol>`);
     lines.push(`\t\t\t<Information/>`);
@@ -131,6 +162,9 @@ function x(val: string | null | undefined): string {
   if (!val) return "";
   return val
     .replace(/&/g, " AND ")
+    // Common OCR corruptions: [PVT] → PVT, [P\RRL → PVT, stray backslashes
+    .replace(/\[P\\?R+L\.?/gi, "PVT")
+    .replace(/\[([A-Z]+)\]/g, "$1")
     .replace(/[^a-zA-Z0-9 .,\/\-]/g, " ")
     .replace(/\s{2,}/g, " ")
     .trim();

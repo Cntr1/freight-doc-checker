@@ -67,6 +67,33 @@ function bothHaveValue(a: any, b: any): boolean {
   return true;
 }
 
+/**
+ * Normalise a field value for XML-aware comparison.
+ * Applies the same sanitisation that xml-generator uses, so HBL raw text
+ * and Gensoft XML text compare as equal when they represent the same data.
+ */
+function normalizeForXml(val: string | null | undefined): string {
+  if (!val) return "";
+  // Strip pallet count and weight table preambles (same logic as xml-generator)
+  const cleaned = val
+    .replace(/^(ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|\d+)\s+PALLETS?\s+ONLY\s*/i, "")
+    .replace(/\bGR\.?\s*WT\.?\\?KGS?\b\s*[\d.,]*/gi, "")
+    .replace(/\bNET\.?\s*WT\.?\\?KGS?\b\s*[\d.,]+\s*/gi, "")
+    .replace(/\bTOTAL\s+\d+\s+PACKAGES?\s+[\d.,]+\s*/gi, "")
+    .trim();
+  return cleaned
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/\[p\\?r+l\.?/gi, "pvt")
+    .replace(/\[([a-z]+)\]/gi, "$1")
+    .replace(/\binvoice\s*no[:\s]+/gi, "invoiceno")
+    .replace(/\bhs\s*code[;:\s]+/gi, "hscode")
+    .replace(/\bs\/bill\s*no[:\s]+/gi, "sbillno")
+    .replace(/(\d+mm)\s+([a-z])\b/gi, "$1$2")
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
+
 function compareField(
   doc1: ExtractedDoc,
   doc2: ExtractedDoc,
@@ -85,8 +112,23 @@ function compareField(
     field === "Place_of_unloading_code" ||
     field === "Place_of_delivery";
 
-  const norm1 = isPortField ? normalizePort(String(v1)) : normalize(String(v1));
-  const norm2 = isPortField ? normalizePort(String(v2)) : normalize(String(v2));
+  const isXmlComparison =
+    doc1.document_type.startsWith("XML:") ||
+    doc2.document_type.startsWith("XML:") ||
+    doc1.document_type.includes("(XML)") ||
+    doc2.document_type.includes("(XML)");
+
+  const norm1 = isPortField
+    ? normalizePort(String(v1))
+    : isXmlComparison
+      ? normalizeForXml(String(v1))
+      : normalize(String(v1));
+
+  const norm2 = isPortField
+    ? normalizePort(String(v2))
+    : isXmlComparison
+      ? normalizeForXml(String(v2))
+      : normalize(String(v2));
 
   if (norm1 === norm2) {
     matches.push(label);
@@ -178,6 +220,7 @@ export function compareDocuments(doc1: ExtractedDoc, doc2: ExtractedDoc): Compar
     ["Freight_terms",          "Freight Terms",           "warning"],
     ["Ctn_reference",          "Container Number",        "critical"],
     ["Marks1",                 "Seal Number",             "warning"],
+    ["Goods_description",      "Goods Description",       "warning"],
   ];
 
   for (const [field, label, severity] of fieldPairs) {

@@ -11,7 +11,7 @@ Return ONLY this JSON. Use null for fields not present. Keep values exactly as w
 
 {
   "document_type": "${label}",
-  "Bol_reference": "the B/L number on this document, e.g. CCLBOM252402, or null",
+  "Bol_reference": "the B/L number on this document. On a House B/L this is the forwarder's reference e.g. CCLBOM252402. On a Master B/L this is the carrier's B/L number e.g. BOMA54245600 — it may also appear as the Booking No. Extract it regardless of which field it appears in. Use null if not found.",
 
   "Exporter_name": "the shipper/consignor/exporter company name, or null",
   "Exporter_address": "the shipper/consignor/exporter address, or null",
@@ -33,7 +33,7 @@ Return ONLY this JSON. Use null for fields not present. Keep values exactly as w
   "Gross_mass": 6380.72,
   "Volume_in_cubic_meters": 50.0,
   "Shipping_marks": "the Marks and Numbers / Shipping Marks field as written (e.g. TIRUPATI MAKE). Look in the marks/numbers column of the cargo table. Use null if genuinely absent.",
-  "Goods_description": "the COMPLETE goods description block — include ALL lines: package count line, part codes, product descriptions, invoice numbers, HS codes, S/Bill numbers. Do NOT include weight table data (lines containing GR. WT., NET. WT., KGS with numbers, or CBM values). Do NOT truncate.",
+  "Goods_description": "the COMPLETE goods description block exactly as written — include ALL lines in order: the package count line (e.g. 'NINETEEN PACKAGE ONLY TOTAL 19 PACKAGES'), part codes, product descriptions, invoice numbers, HS codes, S/Bill numbers. Do NOT include weight table data (lines containing GR. WT., NET. WT., KGS with numbers, or CBM values). Do NOT truncate or skip any lines.",
   "Ctn_reference": "the container number — a code like HMMU4028768 (4 letters + 7 digits). Do NOT use the carrier B/L prefix (like HDMU or BOMA). If the document shows 'HMMU4028768 / 2464981' the container number is HMMU4028768. Use null if not found.",
   "Marks1": "the seal number — on an MBL it appears after the slash in the container line e.g. 'HMMU4028768 / 2464981' where 2464981 is the seal number. Also check the Seal No. field. Use null if not found.",
 
