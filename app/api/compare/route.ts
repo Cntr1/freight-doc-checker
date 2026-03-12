@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import pdfParse from "pdf-parse";
 import { EXTRACTION_SYSTEM_PROMPT, buildExtractionPrompt } from "@/lib/prompt";
-import { compareDocuments } from "@/lib/compare";
+import { compareDocuments, comparePreShipment } from "@/lib/compare";
 import { parseGensoftXml } from "@/lib/xml-parser";
 import { generateGensoftXml } from "@/lib/xml-generator";
 import type { ExtractedDoc, MasterBolData } from "@/lib/types";
@@ -215,6 +215,21 @@ export async function POST(request: NextRequest) {
         hblFiles.push({ label, buffer, text, mimeType: value.type });
         continue;
       }
+    }
+
+    // ── PRESHIPMENT action ──────────────────────────────────────────────────
+    if (action === "preshipment") {
+      if (hblFiles.length < 2) {
+        return NextResponse.json({ error: "Upload both a packing list and commercial invoice." }, { status: 400 });
+      }
+      console.log("Pre-shipment check: extracting packing list and invoice...");
+      const [doc1, doc2] = await Promise.all([
+        extractDoc(activeGroq, activeGemini, hblFiles[0].label, hblFiles[0].text, hblFiles[0].buffer, hblFiles[0].mimeType),
+        extractDoc(activeGroq, activeGemini, hblFiles[1].label, hblFiles[1].text, hblFiles[1].buffer, hblFiles[1].mimeType),
+      ]);
+      detectAndFixSwap([doc1, doc2]);
+      const result = comparePreShipment(doc1, doc2);
+      return NextResponse.json(result);
     }
 
     // ── GENERATE XML action ─────────────────────────────────────────────────

@@ -67,6 +67,7 @@ export interface ExtractedItem {
   item_code: string | null;
   po_number: string | null;
   description: string;
+  hs_code: string | null;
   quantity: number | null;
   quantity_unit: string | null;
   gross_weight: string | null;
@@ -77,6 +78,8 @@ export interface ExtractedItem {
   total_price: string | null;
 }
 
+export type ComparisonMode = "preshipment" | "bl";
+
 // Master B/L data — maps to XML <Master_bol>
 export interface MasterBolData {
   Customs_office_code: string;   // e.g. SECMB
@@ -85,8 +88,8 @@ export interface MasterBolData {
   Reference_number: string;      // MBL B/L No
 }
 
-// A single HBL slot in the UI
-export interface HblSlot {
+  // A single HBL slot in the UI
+  export interface HblSlot {
   id: string;   // unique id for React key
   file: File | null;
 }

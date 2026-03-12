@@ -1,7 +1,6 @@
 import type { ComparisonResult, Discrepancy, Severity, ExtractedDoc } from "./types";
 
 // Port code → normalised name lookup
-// Expand this as new routes are added
 const PORT_CODE_MAP: Record<string, string> = {
   INNSA: "nhavasheva",
   INBOM: "mumbai",
@@ -39,17 +38,14 @@ function normalizePort(val: string | null | undefined): string {
   if (!val) return "";
   const raw = val.toString().trim();
 
-  // If it looks like a UN/LOCODE (5 uppercase letters), map it
   if (/^[A-Z]{5}$/.test(raw) && PORT_CODE_MAP[raw]) {
     return PORT_CODE_MAP[raw];
   }
 
-  // Otherwise strip country suffix and normalize
   let s = raw.toLowerCase();
   s = s.replace(/,?\s*(china|india|sri\s*lanka|singapore|malaysia|usa|uk|japan|korea|thailand|indonesia|vietnam|philippines|hong\s*kong|taiwan|bangladesh|pakistan|myanmar|cambodia|egypt|turkey|brazil|mexico|germany|netherlands|belgium|france|italy|spain|uae|saudi\s*arabia|oman|qatar|kenya|south\s*africa|australia|new\s*zealand|canada|p\.?r\.?c\.?|srilanka)\.?\s*$/i, "");
   s = s.replace(/[^a-z0-9]/g, "");
 
-  // Map common name variants to canonical form
   if (s === "nhavasheva" || s === "nhabasheva" || s === "nseva") return "nhavasheva";
   if (s === "colombo") return "colombo";
 
@@ -61,12 +57,6 @@ function normalizeSpaced(val: string | null | undefined): string {
   return val.toString().replace(/\s+/g, " ").trim();
 }
 
-function bothHaveValue(a: any, b: any): boolean {
-  if (a === null || a === undefined || a === "" || a === "null") return false;
-  if (b === null || b === undefined || b === "" || b === "null") return false;
-  return true;
-}
-
 /**
  * Normalise a field value for XML-aware comparison.
  * Applies the same sanitisation that xml-generator uses, so HBL raw text
@@ -74,7 +64,6 @@ function bothHaveValue(a: any, b: any): boolean {
  */
 function normalizeForXml(val: string | null | undefined): string {
   if (!val) return "";
-  // Strip pallet count and weight table preambles (same logic as xml-generator)
   const cleaned = val
     .replace(/^(ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|\d+)\s+PALLETS?\s+ONLY\s*/i, "")
     .replace(/\bGR\.?\s*WT\.?\\?KGS?\b\s*[\d.,]*/gi, "")
@@ -92,6 +81,12 @@ function normalizeForXml(val: string | null | undefined): string {
     .replace(/(\d+mm)\s+([a-z])\b/gi, "$1$2")
     .replace(/[^a-z0-9]/g, "")
     .trim();
+}
+
+function bothHaveValue(a: any, b: any): boolean {
+  if (a === null || a === undefined || a === "" || a === "null") return false;
+  if (b === null || b === undefined || b === "" || b === "null") return false;
+  return true;
 }
 
 function compareField(
@@ -114,9 +109,7 @@ function compareField(
 
   const isXmlComparison =
     doc1.document_type.startsWith("XML:") ||
-    doc2.document_type.startsWith("XML:") ||
-    doc1.document_type.includes("(XML)") ||
-    doc2.document_type.includes("(XML)");
+    doc2.document_type.startsWith("XML:");
 
   const norm1 = isPortField
     ? normalizePort(String(v1))
@@ -200,27 +193,28 @@ function matchItems(items1: any[], items2: any[]) {
   };
 }
 
+// ── B/L Verification comparison ───────────────────────────────────────────
+
 export function compareDocuments(doc1: ExtractedDoc, doc2: ExtractedDoc): ComparisonResult {
   const discrepancies: Discrepancy[] = [];
   const matches: string[] = [];
 
-  // Field name → display label → severity
   const fieldPairs: Array<[string, string, Severity]> = [
-    ["Exporter_name",          "Exporter / Shipper",      "critical"],
-    ["Exporter_address",       "Exporter Address",        "warning"],
-    ["Consignee_name",         "Consignee",               "critical"],
-    ["Consignee_address",      "Consignee Address",       "info"],
-    ["Notify_name",            "Notify Party",            "warning"],
-    ["Carrier_name",           "Carrier / Delivery Agent","warning"],
-    ["Vessel_name",            "Vessel Name",             "critical"],
-    ["Voyage_number",          "Voyage Number",           "critical"],
-    ["Place_of_loading_code",  "Port of Loading",         "critical"],
-    ["Place_of_unloading_code","Port of Discharge",       "critical"],
-    ["Place_of_delivery",      "Place of Delivery",       "warning"],
-    ["Freight_terms",          "Freight Terms",           "warning"],
-    ["Ctn_reference",          "Container Number",        "critical"],
-    ["Marks1",                 "Seal Number",             "warning"],
-    ["Goods_description",      "Goods Description",       "warning"],
+    ["Exporter_name",          "Exporter / Shipper",       "critical"],
+    ["Exporter_address",       "Exporter Address",         "warning"],
+    ["Consignee_name",         "Consignee",                "critical"],
+    ["Consignee_address",      "Consignee Address",        "info"],
+    ["Notify_name",            "Notify Party",             "warning"],
+    ["Carrier_name",           "Carrier / Delivery Agent", "warning"],
+    ["Vessel_name",            "Vessel Name",              "critical"],
+    ["Voyage_number",          "Voyage Number",            "critical"],
+    ["Place_of_loading_code",  "Port of Loading",          "critical"],
+    ["Place_of_unloading_code","Port of Discharge",        "critical"],
+    ["Place_of_delivery",      "Place of Delivery",        "warning"],
+    ["Freight_terms",          "Freight Terms",            "warning"],
+    ["Ctn_reference",          "Container Number",         "critical"],
+    ["Marks1",                 "Seal Number",              "warning"],
+    ["Goods_description",      "Goods Description",        "warning"],
   ];
 
   for (const [field, label, severity] of fieldPairs) {
@@ -259,7 +253,7 @@ export function compareDocuments(doc1: ExtractedDoc, doc2: ExtractedDoc): Compar
     }
   }
 
-  // Gross mass — any difference = critical
+  // Gross mass
   if (bothHaveValue(doc1.Gross_mass, doc2.Gross_mass)) {
     const w1 = parseFloat(String(doc1.Gross_mass).replace(/[^0-9.]/g, ""));
     const w2 = parseFloat(String(doc2.Gross_mass).replace(/[^0-9.]/g, ""));
@@ -296,7 +290,7 @@ export function compareDocuments(doc1: ExtractedDoc, doc2: ExtractedDoc): Compar
     }
   }
 
-  // ── Item-level comparison ──────────────────────────────────────────────────
+  // ── Item-level comparison ────────────────────────────────────────────────
   const items1 = doc1.items || [];
   const items2 = doc2.items || [];
 
@@ -410,6 +404,207 @@ export function compareDocuments(doc1: ExtractedDoc, doc2: ExtractedDoc): Compar
     summary = `Found ${criticalCount} critical issue${criticalCount > 1 ? "s" : ""} requiring action.${warningCount > 0 ? ` Also ${warningCount} warning${warningCount > 1 ? "s" : ""} to review.` : ""}`;
   } else {
     summary = `Found ${discrepancies.length} minor issue${discrepancies.length > 1 ? "s" : ""} to review — no critical problems.`;
+  }
+
+  return { summary, discrepancies, matches };
+}
+
+// ── Pre-shipment comparison (Packing List vs Commercial Invoice) ───────────
+// Only compares fields relevant to pre-shipment: parties, item quantities,
+// descriptions, HS codes, weights, totals.
+// Does NOT compare B/L-specific fields (vessel, voyage, ports, container).
+
+export function comparePreShipment(
+  doc1: ExtractedDoc,
+  doc2: ExtractedDoc
+): ComparisonResult {
+  const discrepancies: Discrepancy[] = [];
+  const matches: string[] = [];
+
+  const fieldPairs: Array<[string, string, Severity]> = [
+    ["Exporter_name",     "Exporter / Shipper", "critical"],
+    ["Consignee_name",    "Consignee",           "critical"],
+    ["Exporter_address",  "Exporter Address",    "warning"],
+    ["Consignee_address", "Consignee Address",   "warning"],
+  ];
+
+  for (const [field, label, severity] of fieldPairs) {
+    compareField(doc1, doc2, field, label, severity, discrepancies, matches);
+  }
+
+  // Total gross weight
+  if (bothHaveValue(doc1.Gross_mass, doc2.Gross_mass)) {
+    const w1 = parseFloat(String(doc1.Gross_mass).replace(/[^0-9.]/g, ""));
+    const w2 = parseFloat(String(doc2.Gross_mass).replace(/[^0-9.]/g, ""));
+    if (!isNaN(w1) && !isNaN(w2)) {
+      if (w1 !== w2) {
+        addDiscrepancy(discrepancies, "Total Gross Weight", "critical",
+          doc1.document_type, String(w1),
+          doc2.document_type, String(w2),
+          "Total gross weight mismatch — must be resolved before issuing B/L."
+        );
+      } else {
+        matches.push("Total Gross Weight");
+      }
+    }
+  }
+
+  // Total packages
+  if (bothHaveValue(doc1.Number_of_packages, doc2.Number_of_packages)) {
+    const n1 = Number(doc1.Number_of_packages);
+    const n2 = Number(doc2.Number_of_packages);
+    if (!isNaN(n1) && !isNaN(n2)) {
+      if (n1 !== n2) {
+        addDiscrepancy(discrepancies, "Total Packages", "critical",
+          doc1.document_type, String(n1),
+          doc2.document_type, String(n2),
+          "Package count mismatch."
+        );
+      } else {
+        matches.push("Total Packages");
+      }
+    }
+  }
+
+  // CBM
+  if (bothHaveValue(doc1.Volume_in_cubic_meters, doc2.Volume_in_cubic_meters)) {
+    const c1 = parseFloat(String(doc1.Volume_in_cubic_meters));
+    const c2 = parseFloat(String(doc2.Volume_in_cubic_meters));
+    if (!isNaN(c1) && !isNaN(c2) && c1 > 0 && c2 > 0) {
+      const pct = Math.abs(c1 - c2) / Math.max(c1, c2);
+      if (pct === 0) {
+        matches.push("Total CBM");
+      } else {
+        addDiscrepancy(discrepancies, "Total CBM", pct > 0.05 ? "critical" : "warning",
+          doc1.document_type, String(c1),
+          doc2.document_type, String(c2),
+          pct > 0.05 ? "CBM mismatch." : "CBM difference — possible rounding."
+        );
+      }
+    }
+  }
+
+  // ── Item-level ────────────────────────────────────────────────────────────
+  const items1 = doc1.items || [];
+  const items2 = doc2.items || [];
+
+  if (items1.length > 0 && items2.length > 0) {
+    const { matched, onlyInDoc1, onlyInDoc2 } = matchItems(items1, items2);
+
+    for (const item of onlyInDoc1) {
+      addDiscrepancy(discrepancies, "Missing Item", "critical",
+        doc1.document_type, `${itemDisplayLabel(item)} — Qty: ${item.quantity ?? "?"}`,
+        doc2.document_type, "NOT FOUND",
+        `Item on ${doc1.document_type} not found on ${doc2.document_type}.`
+      );
+    }
+    for (const item of onlyInDoc2) {
+      addDiscrepancy(discrepancies, "Missing Item", "critical",
+        doc1.document_type, "NOT FOUND",
+        doc2.document_type, `${itemDisplayLabel(item)} — Qty: ${item.quantity ?? "?"}`,
+        `Item on ${doc2.document_type} not found on ${doc1.document_type}.`
+      );
+    }
+
+    for (const { item1, item2 } of matched) {
+      const label = itemShortLabel(item1);
+
+      // Quantity
+      const q1 = Number(item1.quantity);
+      const q2 = Number(item2.quantity);
+      if (!isNaN(q1) && !isNaN(q2)) {
+        if (q1 !== q2) {
+          addDiscrepancy(discrepancies, `Quantity — ${label}`, "critical",
+            doc1.document_type, `${q1} ${item1.quantity_unit || ""}`.trim(),
+            doc2.document_type, `${q2} ${item2.quantity_unit || ""}`.trim(),
+            "Quantity mismatch — must be resolved."
+          );
+        } else {
+          matches.push(`Quantity — ${label}`);
+        }
+      }
+
+      // Description
+      if (bothHaveValue(item1.description, item2.description)) {
+        if (normalize(item1.description) !== normalize(item2.description)) {
+          addDiscrepancy(discrepancies, `Description — ${label}`, "warning",
+            doc1.document_type, normalizeSpaced(item1.description),
+            doc2.document_type, normalizeSpaced(item2.description),
+            "Description wording differs — verify before issuing B/L."
+          );
+        } else {
+          matches.push(`Description — ${label}`);
+        }
+      }
+
+      // HS Code
+      if (bothHaveValue(item1.hs_code, item2.hs_code)) {
+        const hs1 = normalize(String(item1.hs_code));
+        const hs2 = normalize(String(item2.hs_code));
+        if (hs1 !== hs2) {
+          addDiscrepancy(discrepancies, `HS Code — ${label}`, "critical",
+            doc1.document_type, String(item1.hs_code),
+            doc2.document_type, String(item2.hs_code),
+            "HS code mismatch — customs implications, must be resolved."
+          );
+        } else {
+          matches.push(`HS Code — ${label}`);
+        }
+      }
+
+      // Gross weight per item
+      if (bothHaveValue(item1.gross_weight, item2.gross_weight)) {
+        const gw1 = parseFloat(String(item1.gross_weight).replace(/[^0-9.]/g, ""));
+        const gw2 = parseFloat(String(item2.gross_weight).replace(/[^0-9.]/g, ""));
+        if (!isNaN(gw1) && !isNaN(gw2)) {
+          if (gw1 !== gw2) {
+            addDiscrepancy(discrepancies, `Gross Weight — ${label}`, "critical",
+              doc1.document_type, String(item1.gross_weight),
+              doc2.document_type, String(item2.gross_weight),
+              "Line item weight mismatch."
+            );
+          } else {
+            matches.push(`Gross Weight — ${label}`);
+          }
+        }
+      }
+
+      // Net weight per item
+      if (bothHaveValue(item1.net_weight, item2.net_weight)) {
+        const nw1 = parseFloat(String(item1.net_weight).replace(/[^0-9.]/g, ""));
+        const nw2 = parseFloat(String(item2.net_weight).replace(/[^0-9.]/g, ""));
+        if (!isNaN(nw1) && !isNaN(nw2)) {
+          if (nw1 !== nw2) {
+            addDiscrepancy(discrepancies, `Net Weight — ${label}`, "critical",
+              doc1.document_type, String(item1.net_weight),
+              doc2.document_type, String(item2.net_weight),
+              "Net weight mismatch."
+            );
+          } else {
+            matches.push(`Net Weight — ${label}`);
+          }
+        }
+      }
+    }
+
+    if (matched.length > 0 && onlyInDoc1.length === 0 && onlyInDoc2.length === 0) {
+      matches.push("All items present in both documents");
+    }
+  }
+
+  const severityOrder: Record<Severity, number> = { critical: 0, warning: 1, info: 2 };
+  discrepancies.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+
+  const criticalCount = discrepancies.filter((d) => d.severity === "critical").length;
+  const warningCount = discrepancies.filter((d) => d.severity === "warning").length;
+
+  let summary: string;
+  if (discrepancies.length === 0) {
+    summary = "Pre-shipment check passed. Packing list and invoice are consistent.";
+  } else if (criticalCount > 0) {
+    summary = `Found ${criticalCount} critical issue${criticalCount > 1 ? "s" : ""} — do not issue B/L until resolved.${warningCount > 0 ? ` Also ${warningCount} warning${warningCount > 1 ? "s" : ""} to review.` : ""}`;
+  } else {
+    summary = `Found ${warningCount} warning${warningCount > 1 ? "s" : ""} to review — no critical issues.`;
   }
 
   return { summary, discrepancies, matches };

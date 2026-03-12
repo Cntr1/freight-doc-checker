@@ -45,6 +45,7 @@ Return ONLY this JSON. Use null for fields not present. Keep values exactly as w
       "item_code": "product code like 71400 or null",
       "po_number": "PO reference or null",
       "description": "product description as written",
+      "hs_code": "HS/HTS tariff code for this line item e.g. 39202010, or null",
       "quantity": 1000,
       "quantity_unit": "PCS",
       "gross_weight": "weight or null",
@@ -68,4 +69,5 @@ IMPORTANT RULES:
 - Gross_mass: extract as a plain number in KGS (e.g. 6380.72, not "6380.72 KGS").
 - Volume_in_cubic_meters: extract as a plain number (e.g. 50.0), or 0 if not stated.
 - If goods are listed as a single block without individual quantities, create ONE item with the full description and quantity = null.
-- Do NOT split a combined goods description into separate items unless each has its own quantity.`;
+- Do NOT split a combined goods description into separate items unless each has its own quantity.
+- hs_code: extract the HS/HTS tariff code for each line item if present (e.g. 39202010, 39262099). On invoices and packing lists it usually appears in a dedicated column. On B/Ls it may appear in the goods description block.`;
