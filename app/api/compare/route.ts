@@ -20,7 +20,8 @@ function cleanAndParseJSON(raw: string): any {
   try {
     return JSON.parse(text);
   } catch {
-    text = text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "");
+    text = text.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
+    text = text.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
     let inStr = false, esc = false, out = "";
     for (let i = 0; i < text.length; i++) {
       const c = text[i];
@@ -28,7 +29,10 @@ function cleanAndParseJSON(raw: string): any {
       if (c === "\\") { out += c; esc = true; continue; }
       if (c === '"') { inStr = !inStr; out += c; continue; }
       if (inStr && c === "\n") { out += "\\n"; continue; }
+      if (inStr && c === "\r") { out += "\\r"; continue; }
       if (inStr && c === "\t") { out += "\\t"; continue; }
+      if (inStr && c === "\f") { out += "\\f"; continue; }
+      if (inStr && c === "\b") { out += "\\b"; continue; }
       out += c;
     }
     return JSON.parse(out);
